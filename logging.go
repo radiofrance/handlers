@@ -23,6 +23,7 @@ type LogFormatterParams struct {
 	TimeStamp  time.Time
 	StatusCode int
 	Size       int
+	Latency    time.Duration
 }
 
 // LogFormatter gives the signature of the formatter function passed to CustomLoggingHandler
@@ -38,19 +39,23 @@ type loggingHandler struct {
 }
 
 func (h loggingHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	t := time.Now()
-	logger := makeLogger(w)
-	url := *req.URL
 
+	logger := makeLogger(w)
+
+	start := time.Now()
 	h.handler.ServeHTTP(logger, req)
+	timestamp := time.Now()
 	if req.MultipartForm != nil {
-		req.MultipartForm.RemoveAll()
+		_ = req.MultipartForm.RemoveAll()
 	}
+
+	latency := timestamp.Sub(start)
 
 	params := LogFormatterParams{
 		Request:    req,
-		URL:        url,
-		TimeStamp:  t,
+		URL:        *req.URL,
+		TimeStamp:  timestamp,
+		Latency:    latency,
 		StatusCode: logger.Status(),
 		Size:       logger.Size(),
 	}
